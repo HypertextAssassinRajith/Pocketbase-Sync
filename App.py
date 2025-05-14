@@ -1,9 +1,12 @@
 import pandas as pd
 import requests
 import json
+from pocketbase import PocketBase
+from dotenv import load_dotenv
+import os
 
 
-POCKETBASE_URL = "http://13.251.18.154:8090"
+POCKETBASE_URL = os.getenv("POCKETBASE_URL")
 COLLECTION_NAME = "customers"
 
 FILE_PATH = "customers.xlsx" 
