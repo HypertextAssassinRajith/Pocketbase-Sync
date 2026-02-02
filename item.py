@@ -10,7 +10,7 @@ Optional:
 - Form (comma-separated relation record ids) or Form_Id / Form_Ids
 
 Usage (PowerShell):
-  python item.py --excel items.xlsx --base-url https://bkcus.samanaladanuma.lk --email sanjayasenanayaka033@gmail.com --password "i5ztVVysGeSzAPZ"
+  python item.py --excel items.xlsx --base-url https://bkcus.samanaladanuma.lk --email <your_email>@gmail.com --password ""
 
 Notes:
 - Requires: pip install pandas openpyxl requests
