@@ -31,6 +31,24 @@ def _pick_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
     return None
 
 
+def _parse_relation_ids(val: Any) -> List[str]:
+    """Accept comma/semicolon/newline separated ids (or a single id) and return a clean list."""
+    if val is None:
+        return []
+    s = str(val).strip()
+    if not s:
+        return []
+    parts = [p.strip() for p in re.split(r"[,;\n\t]+", s) if p.strip()]
+    # de-dup while preserving order
+    out: List[str] = []
+    seen = set()
+    for p in parts:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
 class PocketBaseClient:
     def __init__(self, base_url: str, timeout: int = 60):
         self.base_url = base_url.rstrip("/")
@@ -85,7 +103,11 @@ def main() -> int:
         default=os.environ.get("PB_AUTH", "public"),
         help="Auth mode: public (default) or admin",
     )
-    parser.add_argument("--relation-id", default="tv03ya5d5h53iq3", help="Relation record id to add to Form field")
+    parser.add_argument(
+        "--relation-id",
+        default="tv03ya5d5h53iq3,9w2kz05df2ebn4m,914en4m24ff5gww",
+        help="One or more relation record ids to add to Form (comma-separated)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print payloads without creating records")
     args = parser.parse_args()
 
@@ -126,7 +148,7 @@ def main() -> int:
         else:
             pb.clear_auth()
 
-    relation_id = str(args.relation_id)
+    relation_ids = _parse_relation_ids(args.relation_id)
     created = 0
     updated = 0
 
@@ -156,10 +178,12 @@ def main() -> int:
             current_form = rec.get("Form") or []
             if not isinstance(current_form, list):
                 current_form = [current_form]
-            if relation_id in current_form:
-                print(f"Row={idx+1} Item_Code={item_code} already has relation {relation_id}; skipping.")
+
+            to_add = [rid for rid in relation_ids if rid and rid not in current_form]
+            if not to_add:
+                print(f"Row={idx+1} Item_Code={item_code} already has all relations; skipping.")
             else:
-                new_form = current_form + [relation_id]
+                new_form = current_form + to_add
                 payload = {"Form": new_form}
                 if args.dry_run:
                     print(f"[DRY-RUN] Would update id={rec_id} with Form={new_form}")
@@ -167,7 +191,7 @@ def main() -> int:
                     try:
                         pb.update(args.collection, rec_id, payload)
                         updated += 1
-                        print(f"Updated: id={rec_id} Item_Code={item_code} added relation {relation_id}")
+                        print(f"Updated: id={rec_id} Item_Code={item_code} added relations {to_add}")
                     except requests.HTTPError as e:
                         print(f"Failed to update id={rec_id} Item_Code={item_code}: {e}")
         else:
@@ -177,9 +201,8 @@ def main() -> int:
             }
             if unit:
                 data["Unit"] = unit
-            # always include relation id if provided
-            if relation_id:
-                data["Form"] = [relation_id]
+            if relation_ids:
+                data["Form"] = relation_ids
 
             if args.dry_run:
                 print(f"[DRY-RUN] row={idx+1}: create {data}")
